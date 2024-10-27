@@ -1,0 +1,15 @@
+[package]
+name = "manuel_plug"
+id = "0"
+version = "[insert version here]"
+description = "[insert description here]"
+authors = ["Example Person <example.person@gmail.com>"]
+
+[requirements]
+# list of plugin names with ids. DO NOT REMOVE HOST
+host = "0"
+
+
+[dependencies]
+# list of python dependencies with versions
+flask = "==2.0.3" # <- here as an example, DELETE IF NOT NEEDED
