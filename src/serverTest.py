@@ -22,7 +22,7 @@ class PluginServer:
             print(f"Plugin ID received: {plugin_id}")
             
             # Prepare the XML payload for the plugin
-            xml_data = "<Transcript><Utterance start='0' end='2'>Hello</Utterance><Utterance start='3' end='5'>World</Utterance></Transcript>"
+            xml_data = '<transcript> <u speaker="0"><w start="0.419" end="0.579">Alright,</w><w start="0.759" end="1.039">so</w><w start="1.36" end="1.56">hows</w><w start="1.6" end="1.92">everything</w><w start="1.96" end="2.34">going?</w></u>'
 
             # Send data to the plugin
             utils.send_data(client_socket, plugin_id, xml_data)

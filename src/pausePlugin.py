@@ -1,107 +1,125 @@
 # -*- coding: utf-8 -*-
-# @Author: [Your Name]
-# @Date:   [Current Date]
-# @Description: Plugin to extract pauses from a transcript
+# @Author: Hannah Shader, Jason Wu, Jacob Boyar
+# @Date:   2023-06-26 12:15:56
+# @Last Modified by:   Jacob Boyar
+# @Last Modified time: 2023-08-06 14:11:44
+# @Description: Checks for pauses in speech when one speaker is speaking
 
-from typing import List, Tuple
-from GailBotTools import MarkerUtteranceDict
-from GailBotTools import UtObj
+import logging
+import io
+from typing import Dict, Any, List
+from dataclasses import dataclass
+
+from GailBotTools import (
+    load_formatter,
+    load_threshold,
+)
+from GailBotTools import UttObj
+
 from gailbot import Plugin
+from gailbot import GBPluginMethods
 
-# Set default values if PAUSE_START and PAUSE_END are not present
-PAUSE_START = getattr("PAUSE_START", "DEFAULT_PAUSE_START")
-PAUSE_END = getattr("PAUSE_END", "DEFAULT_PAUSE_END")
+THRESHOLD = load_threshold().PAUSES
+THRESHOLDGAPS = load_threshold().GAPS
+INTERNAL_MARKER = load_formatter().INTERNAL
 
 
-class PauseDetectionPlugin(Plugin):
+###############################################################################
+# CLASS DEFINITIONS                                                           #
+###############################################################################
+class PausePlugin(Plugin):
     """
-    A plugin to detect pauses in the transcript based on utterance timings.
+    Wrapper class for the Pause plugin. Contains functionality that inserts
+    overlap markers
     """
 
-    def __init__(self, threshold: float = 0.5):
-        """
-        Initializes the Pause Detection Plugin.
-
-        Parameters
-        ----------
-        threshold: float
-            The minimum duration (in seconds) to consider as a pause.
-        """
+    def __init__(self) -> None:
         super().__init__()
-        self.threshold = threshold
-        self.pauses: List[Tuple[float, float]] = []
-
-    def apply(self, data_structure: MarkerUtteranceDict):
         """
-        Applies the pause detection logic to the given data structure.
+        Initializes the pause plugin
 
         Parameters
         ----------
-        data_structure: MarkerUtteranceDict
-            The data structure containing utterances.
+        None
 
         Returns
         -------
-        List[Tuple[float, float]]
-            A list of tuples representing start and end times of pauses.
+        None
         """
-        utterances = data_structure.list
 
-        # Detect pauses and add markers to the data structure
-        for i in range(1, len(utterances)):
-            prev_utt = utterances[i - 1]
-            current_utt = utterances[i]
-
-            # Calculate the gap between the end of the previous utterance and the start of the current one
-            gap = current_utt.start - prev_utt.end
-
-            if gap > self.threshold:
-
-                pause_start_marker = UttObj(
-                    prev_utt.end,
-                    prev_utt.end,
-                    prev_utt.speaker,
-                    PAUSE_START,
-                    prev_utt.flexible_info,
-                )
-                pause_end_marker = UttObj(
-                    current_utt.start,
-                    current_utt.start,
-                    current_utt.speaker,
-                    PAUSE_END,
-                    current_utt.flexible_info,
-                )
-
-                data_structure.insert_marker(pause_start_marker)
-                data_structure.insert_marker(pause_end_marker)
-                # If the gap is larger than the threshold, it's a pause
-                self.pauses.append((prev_utt.end, current_utt.start))
-
-        return self.pauses
-
-    def get_pauses(self) -> List[Tuple[float, float]]:
+    def apply(self, dependency_outputs: Dict[str, Any], methods: GBPluginMethods):
         """
-        Returns the detected pauses.
+        Parameters
+        ----------
+        dependency_outputs: a list of dependency outputs
+        methods: the methods being used, currently GBPluginMethods
 
         Returns
         -------
-        List[Tuple[float, float]]
-            A list of tuples representing start and end times of pauses.
+        A structure interact instance
         """
-        return self.pauses
+        # testing
+        self.structure_interact_instance = dependency_outputs["GapPlugin"]
 
-    def testing_print(self, data_structure: MarkerUtteranceDict):
+        # self.structure_interact_instance.testing_print()
+
+        self.structure_interact_instance.apply_markers(PausePlugin.pause_marker)
+        self.structure_interact_instance.new_turn_with_gap_and_pause()
+
+        self.successful = True
+        return self.structure_interact_instance
+
+    def pause_marker(curr_utt: UttObj, next_utt: UttObj) -> UttObj:
         """
-        A testing function to print detected pauses.
+        Parameters
+        ----------
+        curr_utt : UttObj
+            Utterance object representing the current utterance
+        next_utt: UttObj
+            Utterance object representing the next utterance
+
+        Returns
+        -------
+        An utterance object representing a marker node
+
+        Algorithm:
+        ----------
+        1.  Takes in curr_node and get curr_next_node
+        2.  Assert that the nodes are by the same speaker. If they are by
+            different speakers, return false
+        3.  Subtract start time of curr_next_node from end time of curr_node
+            assert that there is "significant gap" between curr_node and
+            curr_next_node with given threshold
+        4.  If there is a "significant pause," return Pause Marker
         """
-        print("Detected Pauses:")
-        for start, end in self.pauses:
-            print(f"Pause from {start} to {end}")
-
-        # Call the XML print method
-        data_structure.print_all_rows_xml(
-            apply_subelement_root=lambda speaker: f"<Speaker>{speaker}</Speaker>",
-            apply_subelement_word=lambda sentence, utt: print(f"<Word>{utt.text}</Word>"),
-            apply_sentence_end=lambda sentence, start, end: print(f"<Sentence start='{start}' end='{end}'>{sentence}</Sentence>")
-        )
-
+        # Pause if uttered by same speaker
+        if curr_utt.speaker == next_utt.speaker:
+            logging.info("start pause analysis")
+            fto = round(next_utt.start - curr_utt.end, 2)
+            # Check for latch threshold
+            if THRESHOLDGAPS.TURN_END_THRESHOLD_SECS <= fto:
+                pass
+        
+            # Check for pause threshold
+            if THRESHOLD.LB_PAUSE <= fto < THRESHOLD.UB_PAUSE:
+                logging.debug(f"generating pause marker")
+                return UttObj(
+                    curr_utt.end,
+                    next_utt.start,
+                    curr_utt.speaker,
+                    INTERNAL_MARKER.PAUSES,
+                    curr_utt.flexible_info,
+                )
+            # Check for micro pause threshold
+            elif THRESHOLD.LB_MICROPAUSE <= fto < THRESHOLD.UB_MICROPAUSE:
+                logging.debug(f"generating micropause marker")
+                return UttObj(
+                    curr_utt.end,
+                    next_utt.start,
+                    curr_utt.speaker,
+                    INTERNAL_MARKER.MICROPAUSE,
+                    curr_utt.flexible_info,
+                )
+                logging.debug(f"micro pause marker  generated")
+          
+        return

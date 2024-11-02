@@ -14,5 +14,5 @@ dependencies:
       - git+https://github.com/m-bain/whisperx.git
       - google
       - gailbot
-      - gailbottools==0.0.9
+      - gailbottools
       - dict-to-dataclass
