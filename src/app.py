@@ -3,6 +3,7 @@ import os
 from GailBotTools import StructureInteract
 from pausePlugin import PausePlugin
 from clients import Client
+from gailbot import GBPluginMethods
 
 ID = 1
 
@@ -13,10 +14,11 @@ def run(data: str):
     structure_interact.apply(data)
 
     # Create an instance of the PauseDetectionPlugin with a specific threshold
-    pause_plugin = PausePlugin(threshold=0.5)
+    pause_plugin = PausePlugin()
 
+    methods = GBPluginMethods()
     # Apply the pause detection to the data structure
-    pause_plugin.apply(structure_interact.data_structure)
+    pause_plugin.apply(structure_interact.data_structure, methods)
 
     # Print detected pauses
     pause_plugin.testing_print(structure_interact.data_structure)
