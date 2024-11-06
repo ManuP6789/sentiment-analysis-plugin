@@ -15,7 +15,7 @@ from GailBotTools import (
     load_threshold,
 )
 from GailBotTools import UttObj
-
+from GailBotTools import MarkerUtteranceDict
 from gailbot import Plugin
 from gailbot import GBPluginMethods
 
@@ -123,3 +123,19 @@ class PausePlugin(Plugin):
                 logging.debug(f"micro pause marker  generated")
           
         return
+    
+    def testing_print(self):
+        """
+        A testing function to print detected pauses.
+        """
+        print("Detected Pauses:")
+        print(self.structure_interact_instance)
+        # for start, end in self.structure_interact_instance.data_structure:
+        #     print(f"Pause from {start} to {end}")
+
+        # # Call the XML print method
+        self.structure_interact_instance.data_structure.print_all_rows_xml(
+            apply_subelement_root=lambda speaker: f"<u speaker={speaker}></u>",
+            apply_subelement_word=lambda sentence, utt: print(f"<w>{utt.text}</w>"),
+            apply_sentence_end=lambda sentence, start, end: print(f"<Sentence start='{start}' end='{end}'>{sentence}</Sentence>")
+        )

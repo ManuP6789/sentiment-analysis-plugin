@@ -16,12 +16,15 @@ def run(data: str):
     # Create an instance of the PauseDetectionPlugin with a specific threshold
     pause_plugin = PausePlugin()
 
-    methods = GBPluginMethods()
+    methods = GBPluginMethods("", "", "", "", "")
+
+    gap_output = {"GapPlugin": structure_interact}
     # Apply the pause detection to the data structure
-    pause_plugin.apply(structure_interact.data_structure, methods)
+    pause_plugin.apply(gap_output, methods)
 
     # Print detected pauses
-    pause_plugin.testing_print(structure_interact.data_structure)
+    print(f"PRINTS HERE. MAKES IT PAST .APPLY() {pause_plugin}")
+    pause_plugin.testing_print()
 
 def example():
     client = Client(ID, run)
